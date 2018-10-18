@@ -8,15 +8,17 @@ declare module monaco.languages.typescript {
         UMD = 3,
         System = 4,
         ES2015 = 5,
+        ESNext = 6
     }
     enum JsxEmit {
         None = 0,
         Preserve = 1,
         React = 2,
+        ReactNative = 3
     }
     enum NewLineKind {
         CarriageReturnLineFeed = 0,
-        LineFeed = 1,
+        LineFeed = 1
     }
 
     enum ScriptTarget {
@@ -25,16 +27,22 @@ declare module monaco.languages.typescript {
         ES2015 = 2,
         ES2016 = 3,
         ES2017 = 4,
-        ESNext = 5,
-        Latest = 5,
+        ES2018 = 5,
+        ESNext = 6,
+        JSON = 100,
+        Latest = 6
     }
 
     export enum ModuleResolutionKind {
         Classic = 1,
-        NodeJs = 2,
+        NodeJs = 2
     }
 
-    type CompilerOptionsValue = string | number | boolean | (string | number)[] | string[];
+    interface MapLike<T> {
+        [index: string]: T;
+    }
+
+    type CompilerOptionsValue = string | number | boolean | (string | number)[] | string[] | MapLike<string[]> | null | undefined;
     interface CompilerOptions {
         allowJs?: boolean;
         allowSyntheticDefaultImports?: boolean;
@@ -43,9 +51,13 @@ declare module monaco.languages.typescript {
         alwaysStrict?: boolean;
         baseUrl?: string;
         charset?: string;
+        checkJs?: boolean;
         declaration?: boolean;
+        declarationMap?: boolean;
+        emitDeclarationOnly?: boolean;
         declarationDir?: string;
         disableSizeLimit?: boolean;
+        downlevelIteration?: boolean;
         emitBOM?: boolean;
         emitDecoratorMetadata?: boolean;
         experimentalDecorators?: boolean;
@@ -55,6 +67,7 @@ declare module monaco.languages.typescript {
         inlineSources?: boolean;
         isolatedModules?: boolean;
         jsx?: JsxEmit;
+        keyofStringsOnly?: boolean;
         lib?: string[];
         locale?: string;
         mapRoot?: string;
@@ -70,6 +83,7 @@ declare module monaco.languages.typescript {
         noImplicitAny?: boolean;
         noImplicitReturns?: boolean;
         noImplicitThis?: boolean;
+        noStrictGenericChecks?: boolean;
         noUnusedLocals?: boolean;
         noUnusedParameters?: boolean;
         noImplicitUseStrict?: boolean;
@@ -78,10 +92,13 @@ declare module monaco.languages.typescript {
         out?: string;
         outDir?: string;
         outFile?: string;
+        paths?: MapLike<string[]>;
         preserveConstEnums?: boolean;
+        preserveSymlinks?: boolean;
         project?: string;
         reactNamespace?: string;
         jsxFactory?: string;
+        composite?: boolean;
         removeComments?: boolean;
         rootDir?: string;
         rootDirs?: string[];
@@ -89,14 +106,19 @@ declare module monaco.languages.typescript {
         skipDefaultLibCheck?: boolean;
         sourceMap?: boolean;
         sourceRoot?: string;
+        strict?: boolean;
+        strictFunctionTypes?: boolean;
         strictNullChecks?: boolean;
+        strictPropertyInitialization?: boolean;
         suppressExcessPropertyErrors?: boolean;
         suppressImplicitAnyIndexErrors?: boolean;
         target?: ScriptTarget;
         traceResolution?: boolean;
+        resolveJsonModule?: boolean;
         types?: string[];
         /** Paths used to compute primary types search locations */
         typeRoots?: string[];
+        esModuleInterop?: boolean;
         [option: string]: CompilerOptionsValue | undefined;
     }
 
@@ -132,10 +154,10 @@ declare module monaco.languages.typescript {
         /**
          * Configure when the worker shuts down. By default that is 2mins.
          *
-         * @param value The maximun idle time in milliseconds. Values less than one
+         * @param value The maximum idle time in milliseconds. Values less than one
          * mean never shut down.
          */
-        setMaximunWorkerIdleTime(value: number): void;
+        setMaximumWorkerIdleTime(value: number): void;
 
         /**
          * Configure if all existing models should be eagerly sync'd
@@ -147,6 +169,6 @@ declare module monaco.languages.typescript {
     export var typescriptDefaults: LanguageServiceDefaults;
     export var javascriptDefaults: LanguageServiceDefaults;
 
-    export var getTypeScriptWorker: () => monaco.Promise<any>;
-    export var getJavaScriptWorker: () => monaco.Promise<any>;
+    export var getTypeScriptWorker: () => Promise<any>;
+    export var getJavaScriptWorker: () => Promise<any>;
 }

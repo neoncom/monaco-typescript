@@ -4,13 +4,11 @@
  *--------------------------------------------------------------------------------------------*/
 'use strict';
 
-import * as mode from './mode';
+import * as mode from './tsMode';
 
 import Emitter = monaco.Emitter;
 import IEvent = monaco.IEvent;
 import IDisposable = monaco.IDisposable;
-
-declare var require: <T>(moduleId: [string], callback: (module: T) => void) => void;
 
 // --- TypeScript configuration and defaults ---------
 
@@ -81,7 +79,7 @@ export class LanguageServiceDefaultsImpl implements monaco.languages.typescript.
 		this._onDidChange.fire(this);
 	}
 
-	setMaximunWorkerIdleTime(value: number): void {
+	setMaximumWorkerIdleTime(value: number): void {
 		// doesn't fire an event since no
 		// worker restart is required here
 		this._workerMaxIdleTime = value;
@@ -102,7 +100,7 @@ export class LanguageServiceDefaultsImpl implements monaco.languages.typescript.
 	}
 }
 
-// --- BEGIN enums copied from typescript to prevent loading the entire typescriptServices ---
+//#region enums copied from typescript to prevent loading the entire typescriptServices ---
 
 enum ModuleKind {
 	None = 0,
@@ -111,26 +109,17 @@ enum ModuleKind {
 	UMD = 3,
 	System = 4,
 	ES2015 = 5,
+	ESNext = 6
 }
 enum JsxEmit {
 	None = 0,
 	Preserve = 1,
 	React = 2,
+	ReactNative = 3
 }
 enum NewLineKind {
 	CarriageReturnLineFeed = 0,
-	LineFeed = 1,
-}
-interface LineAndCharacter {
-	line: number;
-	character: number;
-}
-enum ScriptKind {
-	Unknown = 0,
-	JS = 1,
-	JSX = 2,
-	TS = 3,
-	TSX = 4,
+	LineFeed = 1
 }
 enum ScriptTarget {
 	ES3 = 0,
@@ -138,18 +127,16 @@ enum ScriptTarget {
 	ES2015 = 2,
 	ES2016 = 3,
 	ES2017 = 4,
-	ESNext = 5,
-	Latest = 5,
-}
-enum LanguageVariant {
-	Standard = 0,
-	JSX = 1,
+	ES2018 = 5,
+	ESNext = 6,
+	JSON = 100,
+	Latest = 6
 }
 enum ModuleResolutionKind {
 	Classic = 1,
-	NodeJs = 2,
+	NodeJs = 2
 }
-// --- END enums copied from typescript to prevent loading the entire typescriptServices ---
+//#endregion
 
 const typescriptDefaults = new LanguageServiceDefaultsImpl(
 	{ allowNonTsExtensions: true, target: ScriptTarget.Latest },
@@ -160,21 +147,11 @@ const javascriptDefaults = new LanguageServiceDefaultsImpl(
 	{ noSemanticValidation: true, noSyntaxValidation: false });
 
 function getTypeScriptWorker(): monaco.Promise<any> {
-	return new monaco.Promise((resolve, reject) => {
-		withMode((mode) => {
-			mode.getTypeScriptWorker()
-				.then(resolve, reject);
-		});
-	});
+	return getMode().then(mode => mode.getTypeScriptWorker());
 }
 
 function getJavaScriptWorker(): monaco.Promise<any> {
-	return new monaco.Promise((resolve, reject) => {
-		withMode((mode) => {
-			mode.getJavaScriptWorker()
-				.then(resolve, reject);
-		});
-	});
+	return getMode().then(mode => mode.getJavaScriptWorker());
 }
 
 // Export API
@@ -195,28 +172,13 @@ monaco.languages.typescript = createAPI();
 
 // --- Registration to monaco editor ---
 
-function withMode(callback: (module: typeof mode) => void): void {
-	require<typeof mode>(['vs/language/typescript/src/mode'], callback);
+function getMode(): monaco.Promise<typeof mode> {
+	return monaco.Promise.wrap(import('./tsMode'))
 }
 
-monaco.languages.register({
-	id: 'typescript',
-	extensions: ['.ts', '.tsx'],
-	aliases: ['TypeScript', 'ts', 'typescript'],
-	mimetypes: ['text/typescript']
-});
 monaco.languages.onLanguage('typescript', () => {
-	withMode((mode) => mode.setupTypeScript(typescriptDefaults));
-});
-
-monaco.languages.register({
-	id: 'javascript',
-	extensions: ['.js', '.es6', '.jsx'],
-	firstLine: '^#!.*\\bnode',
-	filenames: ['jakefile'],
-	aliases: ['JavaScript', 'javascript', 'js'],
-	mimetypes: ['text/javascript'],
+	return getMode().then(mode => mode.setupTypeScript(typescriptDefaults));
 });
 monaco.languages.onLanguage('javascript', () => {
-	withMode((mode) => mode.setupJavaScript(javascriptDefaults));
+	return getMode().then(mode => mode.setupJavaScript(javascriptDefaults));
 });
