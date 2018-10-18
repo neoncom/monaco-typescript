@@ -52,21 +52,28 @@ export class DiagnostcsAdapter extends Adapter {
 	) {
 		super(worker);
 
+		const uris: Uri[] = [];
+
 		const onModelAdd = (model: monaco.editor.IModel): void => {
 			if (model.getModeId() !== _selector) {
 				return;
 			}
 
+			uris.push(model.uri);
+
 			let handle: number;
 			const changeSubscription = model.onDidChangeContent(() => {
 				clearTimeout(handle);
-				handle = setTimeout(() => this._doValidate(model.uri), 500);
+				handle = setTimeout(() => {
+					this._doValidate(...uris);
+				}, 500);
 			});
 
 			this._listener[model.uri.toString()] = {
 				dispose() {
 					changeSubscription.dispose();
 					clearTimeout(handle);
+					uris.splice(uris.indexOf(model.uri), 1);
 				}
 			};
 
@@ -113,39 +120,49 @@ export class DiagnostcsAdapter extends Adapter {
 		this._disposables = [];
 	}
 
-	private _doValidate(resource: Uri): void {
-		this._worker(resource).then(worker => {
-			if (!monaco.editor.getModel(resource)) {
-				// model was disposed in the meantime
-				return null;
-			}
-			const promises: Promise<ts.Diagnostic[]>[] = [];
-			const {noSyntaxValidation, noSemanticValidation} = this._defaults.getDiagnosticsOptions();
-			if (!noSyntaxValidation) {
-				promises.push(worker.getSyntacticDiagnostics(resource.toString()));
-			}
-			if (!noSemanticValidation) {
-				promises.push(worker.getSemanticDiagnostics(resource.toString()));
-			}
-			return Promise.join(promises);
-		}).then(diagnostics => {
-			if (!diagnostics || !monaco.editor.getModel(resource)) {
-				// model was disposed in the meantime
-				return null;
-			}
-			const markers = diagnostics
-				.reduce((p, c) => c.concat(p), [])
-				.map(d => this._convertDiagnostics(resource, d));
+	private _doValidate(...resources: Uri[]): void {
+		this._worker(resources[0], ...resources.slice(1)).then(worker => {
 
-			monaco.editor.setModelMarkers(monaco.editor.getModel(resource), this._selector, markers);
+			resources = resources.filter(r => monaco.editor.getModel(r));
+			if (!resources.length) {
+				// model was disposed in the meantime
+				return null;
+			}
+
+			const { noSyntaxValidation, noSemanticValidation } = this._defaults.getDiagnosticsOptions();
+
+			const proms = resources.map(r => {
+				const promises: Promise<ts.Diagnostic[]>[] = [];
+				if (!noSyntaxValidation) {
+					promises.push(worker.getSyntacticDiagnostics(r.toString()));
+				}
+				if (!noSemanticValidation) {
+					promises.push(worker.getSemanticDiagnostics(r.toString()));
+				}
+
+				return Promise.join(promises).then<void>(diagnostics => {
+
+					if (!diagnostics || !monaco.editor.getModel(r)) {
+						// model was disposed in the meantime
+						return null;
+					}
+					const markers = diagnostics
+						.reduce((p, c) => c.concat(p), [])
+						.map(d => this._convertDiagnostics(r, d));
+
+					monaco.editor.setModelMarkers(monaco.editor.getModel(r), this._selector, markers);
+				})
+			})
+
+			return Promise.join(proms);
 		}).done(undefined, err => {
 			console.error(err);
 		});
 	}
 
 	private _convertDiagnostics(resource: Uri, diag: ts.Diagnostic): monaco.editor.IMarkerData {
-		const {lineNumber: startLineNumber, column: startColumn} = this._offsetToPosition(resource, diag.start);
-		const {lineNumber: endLineNumber, column: endColumn} = this._offsetToPosition(resource, diag.start + diag.length);
+		const { lineNumber: startLineNumber, column: startColumn } = this._offsetToPosition(resource, diag.start);
+		const { lineNumber: endLineNumber, column: endColumn } = this._offsetToPosition(resource, diag.start + diag.length);
 
 		return {
 			severity: monaco.Severity.Error,
