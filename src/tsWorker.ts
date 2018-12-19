@@ -194,6 +194,26 @@ export class TypeScriptWorker implements ts.LanguageServiceHost {
 		return Promise.as(this._languageService.getFormattingEditsAfterKeystroke(fileName, postion, ch, options));
 	}
 
+	getParsedCommandLineOfConfigFile(configFileName: string, optionsToExtend: ts.CompilerOptions, cfgText: string){
+		return Promise.as(ts.getParsedCommandLineOfConfigFile(configFileName,optionsToExtend, {
+			useCaseSensitiveFileNames: false,
+			readDirectory: () => {
+			  return [configFileName];
+			},
+			fileExists: () => {
+			  return true;
+			},
+			readFile: () => {
+			  return cfgText;
+			},
+			getCurrentDirectory: () => {
+			  return "";
+			},
+			onUnRecoverableConfigFileDiagnostic: () => {
+			}
+		  }));
+	}
+
 	getEmitOutput(fileName: string): Promise<ts.EmitOutput> {
 		return Promise.as(this._languageService.getEmitOutput(fileName));
 	}
